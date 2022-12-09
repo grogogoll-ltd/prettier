@@ -1846,13 +1846,13 @@ ajv@^6.10.0, ajv@^6.12.4:
     json-schema-traverse "^0.4.1"
     uri-js "^4.2.2"
 
-angular-estree-parser@2.5.1:
-  version "2.5.1"
-  resolved "https://registry.yarnpkg.com/angular-estree-parser/-/angular-estree-parser-2.5.1.tgz#a08791f64f1a9453ecb99be5379f7f282e46c6ca"
-  integrity sha512-QP+1HEp9sUV3/ADU02IRc+Vn9vvWZS2rRkxiXCpSpZZx3BqcYTm2Eg/gWwLG3H9XASXnf9i1KyNOIYyRy5Ja+w==
+angular-estree-parser@3.0.3:
+  version "3.0.3"
+  resolved "https://registry.yarnpkg.com/angular-estree-parser/-/angular-estree-parser-3.0.3.tgz#e7518c1b2f17bf060258a4bbb17f27619e126ae3"
+  integrity sha512-S2bH8kdCfS6CWhg4Lb68UCCLt9Mcz8gx5jMDeGY+6iIxptP+SHK+9yGNpJpCMR9YaEpDDJrrTGgF6y6WdcFMHA==
   dependencies:
-    lines-and-columns "^1.1.6"
-    tslib "^2.0.3"
+    lines-and-columns "^2.0.3"
+    tslib "^2.4.0"
 
 angular-html-parser@1.8.0:
   version "1.8.0"
@@ -4602,7 +4602,7 @@ levn@~0.3.0:
     prelude-ls "~1.1.2"
     type-check "~0.3.2"
 
-lines-and-columns@2.0.3:
+lines-and-columns@2.0.3, lines-and-columns@^2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/lines-and-columns/-/lines-and-columns-2.0.3.tgz#b2f0badedb556b747020ab8ea7f0373e22efac1b"
   integrity sha512-cNOjgCnLB+FnvWWtyRTzmB3POJ+cXxTA81LoW7u8JdmhfXzriropYwpjShnz1QLLWsQwY7nIxoDmcPTwphDK9w==
@@ -6204,10 +6204,10 @@ tslib@^1.10.0, tslib@^1.8.1, tslib@^1.9.0, tslib@^1.9.3:
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-1.14.1.tgz#cf2d38bdc34a134bcaf1091c41f6619e2f672d00"
   integrity sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==
 
-tslib@^2.0.3, tslib@^2.2.0:
-  version "2.3.1"
-  resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.3.1.tgz#e8a335add5ceae51aa261d32a490158ef042ef01"
-  integrity sha512-77EbyPPpMz+FRFRuAFlWMtmgUWGe9UOG2Z25NqCwiIjRhOf5iKGuzSe5P2w1laq+FkRy4p+PCuVkJSGkzTEKVw==
+tslib@^2.2.0, tslib@^2.4.0:
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.4.1.tgz#0d0bfbaac2880b91e22df0768e55be9753a5b17e"
+  integrity sha512-tGyy4dAjRIEwI7BzsB0lynWgOpfqjUdq91XXAlIWD2OwKBH7oCl/GZG/HT4BOHrTlPMOASlMQ7veyTqpmRcrNA==
 
 tsutils@^3.21.0:
   version "3.21.0"
