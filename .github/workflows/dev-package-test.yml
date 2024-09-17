@@ -2,12 +2,15 @@ name: Dev_Package_Test
 
 on:
   schedule:
-    - cron: "0 0 * * 1"
+    # “At 00:00 on Sunday.” https://crontab.guru/#0_0_*_*_SUN
+    - cron: "0 0 * * SUN"
   pull_request:
     paths:
       - "package.json"
-      - ".github/workflows/dev-package-test.yml"
       - "yarn.lock"
+      # This workflow file
+      - ".github/workflows/dev-package-test.yml"
+      - "tests/config/install-prettier.js"
 
 jobs:
   test:
@@ -19,7 +22,7 @@ jobs:
           - "ubuntu-latest"
         node:
           # Run tests on minimal version we support
-          - "12"
+          - "14"
         NPM_CLIENT:
           - "yarn"
           - "npm"

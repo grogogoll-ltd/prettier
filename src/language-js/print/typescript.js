@@ -49,6 +49,7 @@ const {
   printFunctionType,
   printTupleType,
   printIndexedAccessType,
+  printJSDocType,
 } = require("./type-annotation.js");
 
 function printTypescript(path, options, print) {
@@ -114,6 +115,7 @@ function printTypescript(path, options, print) {
     case "TSAbstractMethodDefinition":
     case "TSDeclareMethod":
       return printClassMethod(path, options, print);
+    case "TSAbstractAccessorProperty":
     case "TSAbstractPropertyDefinition":
       return printClassProperty(path, options, print);
     case "TSInterfaceHeritage":
@@ -147,8 +149,10 @@ function printTypescript(path, options, print) {
       return printTypeParameters(path, options, print, "params");
     case "TSTypeParameter":
       return printTypeParameter(path, options, print);
+    case "TSSatisfiesExpression":
     case "TSAsExpression": {
-      parts.push(print("expression"), " as ", print("typeAnnotation"));
+      const operator = node.type === "TSAsExpression" ? "as" : "satisfies";
+      parts.push(print("expression"), ` ${operator} `, print("typeAnnotation"));
       const parent = path.getParentNode();
       if (
         (isCallExpression(parent) && parent.callee === node) ||
@@ -202,7 +206,7 @@ function printTypescript(path, options, print) {
 
       return parts;
     case "TSTypeQuery":
-      return ["typeof ", print("exprName")];
+      return ["typeof ", print("exprName"), print("typeParameters")];
     case "TSIndexSignature": {
       const parent = path.getParentNode();
 
@@ -413,7 +417,12 @@ function printTypescript(path, options, print) {
 
       return parts;
     case "TSEnumMember":
-      parts.push(print("id"));
+      if (node.computed) {
+        parts.push("[", print("id"), "]");
+      } else {
+        parts.push(print("id"));
+      }
+
       if (node.initializer) {
         parts.push(" = ", print("initializer"));
       }
@@ -517,9 +526,11 @@ function printTypescript(path, options, print) {
     case "TSJSDocUnknownType":
       return "?";
     case "TSJSDocNullableType":
-      return ["?", print("typeAnnotation")];
+      return printJSDocType(path, print, /* token */ "?");
     case "TSJSDocNonNullableType":
-      return ["!", print("typeAnnotation")];
+      return printJSDocType(path, print, /* token */ "!");
+    case "TSInstantiationExpression":
+      return [print("expression"), print("typeParameters")];
     default:
       /* istanbul ignore next */
       throw new Error(

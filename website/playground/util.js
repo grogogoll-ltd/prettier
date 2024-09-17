@@ -94,3 +94,51 @@ export function getAstAutoFold(parser) {
       return astAutoFold.glimmer;
   }
 }
+
+export function convertSelectionToRange({ head, anchor }, content) {
+  const lines = content.split("\n");
+  return [head, anchor]
+    .map(
+      ({ ch, line }) =>
+        lines.slice(0, line).join("\n").length + ch + (line ? 1 : 0)
+    )
+    .sort((a, b) => a - b);
+}
+
+export function convertOffsetToPosition(offset, content) {
+  let line = 0;
+  let ch = 0;
+  for (let i = 0; i < offset && i <= content.length; i++) {
+    if (content[i] === "\n") {
+      line++;
+      ch = 0;
+    } else {
+      ch++;
+    }
+  }
+  return { line, ch };
+}
+
+/**
+ * Copied from https://github.com/prettier/prettier/blob/6fe21780115cf5f74f83876d64b03a727fbab220/src/cli/utils.js#L6-L27
+ * @template Obj
+ * @template Key
+ * @param {Array<Obj>} array
+ * @param {(value: Obj) => Key} iteratee
+ * @returns {{[p in Key]: T}}
+ */
+export function groupBy(array, iteratee) {
+  const result = Object.create(null);
+
+  for (const value of array) {
+    const key = iteratee(value);
+
+    if (Array.isArray(result[key])) {
+      result[key].push(value);
+    } else {
+      result[key] = [value];
+    }
+  }
+
+  return result;
+}

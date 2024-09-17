@@ -415,7 +415,7 @@ function genericPrint(path, options, print) {
           ? [node.namespace === true ? "" : node.namespace.trim(), "|"]
           : "",
         node.attribute.trim(),
-        node.operator ? node.operator : "",
+        node.operator ?? "",
         node.value
           ? quoteAttributeValue(
               adjustStrings(node.value.trim(), options),
@@ -461,7 +461,12 @@ function genericPrint(path, options, print) {
       return [
         maybeToLowerCase(node.value),
         isNonEmptyArray(node.nodes)
-          ? ["(", join(", ", path.map(print, "nodes")), ")"]
+          ? group([
+              "(",
+              indent([softline, join([",", line], path.map(print, "nodes"))]),
+              softline,
+              ")",
+            ])
           : "",
       ];
     }
@@ -825,6 +830,14 @@ function genericPrint(path, options, print) {
           continue;
         }
 
+        if (
+          iNode.value?.endsWith("#") &&
+          iNextNode.value === "{" &&
+          isParenGroupNode(iNextNode.group)
+        ) {
+          continue;
+        }
+
         // Be default all values go through `line`
         parts.push(line);
       }
@@ -924,15 +937,16 @@ function genericPrint(path, options, print) {
                 if (
                   !isLast &&
                   child.type === "value-comma_group" &&
-                  child.groups &&
-                  child.groups[0].type !== "value-paren_group" &&
-                  isNextLineEmpty(
-                    options.originalText,
-                    getLast(child.groups),
-                    locEnd
-                  )
+                  isNonEmptyArray(child.groups)
                 ) {
-                  printed.push(hardline);
+                  const last = getLast(child.groups);
+                  if (
+                    // `value-paren_group` missing location info
+                    last.source &&
+                    isNextLineEmpty(options.originalText, last, locEnd)
+                  ) {
+                    printed.push(hardline);
+                  }
                 }
 
                 return printed;

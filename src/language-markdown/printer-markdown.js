@@ -673,12 +673,12 @@ function printRoot(path, options, print) {
 
         if (index === ignoreRange.start.index) {
           return [
-            children[ignoreRange.start.index].value,
+            printIgnoreComment(children[ignoreRange.start.index]),
             options.originalText.slice(
               ignoreRange.start.offset,
               ignoreRange.end.offset
             ),
-            children[ignoreRange.end.index].value,
+            printIgnoreComment(children[ignoreRange.end.index]),
           ];
         }
 
@@ -750,6 +750,21 @@ function printChildren(path, options, print, events = {}) {
   return postprocessor ? postprocessor(parts) : parts;
 }
 
+function printIgnoreComment(node) {
+  if (node.type === "html") {
+    return node.value;
+  }
+
+  if (
+    node.type === "paragraph" &&
+    Array.isArray(node.children) &&
+    node.children.length === 1 &&
+    node.children[0].type === "esComment"
+  ) {
+    return ["{/* ", node.children[0].value, " */}"];
+  }
+}
+
 function getLastDescendantNode(node) {
   let current = node;
   while (isNonEmptyArray(current.children)) {
@@ -782,7 +797,7 @@ function isPrettierIgnore(node) {
     }
   }
 
-  return match ? (match[1] ? match[1] : "next") : false;
+  return match ? match[1] || "next" : false;
 }
 
 function shouldPrePrintHardline(node, data) {
@@ -804,21 +819,19 @@ function shouldPrePrintDoubleHardline(node, data) {
     data.parentNode.type === "listItem" && !data.parentNode.loose;
 
   const isPrevNodeLooseListItem =
-    data.prevNode && data.prevNode.type === "listItem" && data.prevNode.loose;
+    data.prevNode?.type === "listItem" && data.prevNode.loose;
 
   const isPrevNodePrettierIgnore = isPrettierIgnore(data.prevNode) === "next";
 
   const isBlockHtmlWithoutBlankLineBetweenPrevHtml =
     node.type === "html" &&
-    data.prevNode &&
-    data.prevNode.type === "html" &&
+    data.prevNode?.type === "html" &&
     data.prevNode.position.end.line + 1 === node.position.start.line;
 
   const isHtmlDirectAfterListItem =
     node.type === "html" &&
     data.parentNode.type === "listItem" &&
-    data.prevNode &&
-    data.prevNode.type === "paragraph" &&
+    data.prevNode?.type === "paragraph" &&
     data.prevNode.position.end.line + 1 === node.position.start.line;
 
   return (

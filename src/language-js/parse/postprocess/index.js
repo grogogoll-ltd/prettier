@@ -6,6 +6,7 @@ const isTypeCastComment = require("../../utils/is-type-cast-comment.js");
 const getLast = require("../../../utils/get-last.js");
 const visitNode = require("./visit-node.js");
 const { throwErrorForInvalidNodes } = require("./typescript.js");
+const throwSyntaxError = require("./throw-syntax-error.js");
 
 function postprocess(ast, options) {
   if (
@@ -102,6 +103,20 @@ function postprocess(ast, options) {
           };
         }
         break;
+      case "ObjectExpression":
+        // #12963
+        if (options.parser === "typescript") {
+          const invalidProperty = node.properties.find(
+            (property) =>
+              property.type === "Property" &&
+              property.value.type === "TSEmptyBodyFunctionExpression"
+          );
+          if (invalidProperty) {
+            throwSyntaxError(invalidProperty.value, "Unexpected token.");
+          }
+        }
+        break;
+
       case "SequenceExpression": {
         // Babel (unlike other parsers) includes spaces and comments in the range. Let's unify this.
         const lastExpression = getLast(node.expressions);
@@ -138,6 +153,26 @@ function postprocess(ast, options) {
         }
         break;
       }
+      // TODO: Remove this when https://github.com/meriyah/meriyah/issues/231 get fixed
+      case "PropertyDefinition":
+        if (
+          options.parser === "meriyah" &&
+          node.static &&
+          !node.computed &&
+          !node.key
+        ) {
+          const name = "static";
+          const start = locStart(node);
+          Object.assign(node, {
+            static: false,
+            key: {
+              type: "Identifier",
+              name,
+              range: [start, start + name.length],
+            },
+          });
+        }
+        break;
     }
   });
 

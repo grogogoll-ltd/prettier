@@ -98,6 +98,8 @@ function genericPrint(path, options, print, args) {
     type === "ClassPrivateMethod" ||
     type === "ClassProperty" ||
     type === "ClassAccessorProperty" ||
+    type === "AccessorProperty" ||
+    type === "TSAbstractAccessorProperty" ||
     type === "PropertyDefinition" ||
     type === "TSAbstractPropertyDefinition" ||
     type === "ClassPrivateProperty" ||
@@ -218,7 +220,10 @@ function printPathNoParens(path, options, print, args) {
         return [printDirective(node.expression, options), semi];
       }
 
-      if (options.parser === "__vue_event_binding") {
+      if (
+        options.parser === "__vue_event_binding" ||
+        options.parser === "__vue_ts_event_binding"
+      ) {
         const parent = path.getParentNode();
         if (
           parent.type === "Program" &&
@@ -763,6 +768,7 @@ function printPathNoParens(path, options, print, args) {
     case "PropertyDefinition":
     case "ClassPrivateProperty":
     case "ClassAccessorProperty":
+    case "AccessorProperty":
       return printClassProperty(path, options, print);
     case "TemplateElement":
       return replaceTextEndOfLine(node.value.raw);

@@ -3,7 +3,8 @@
 const { promises: fs } = require("fs");
 const path = require("path");
 
-const chalk = require("chalk");
+// eslint-disable-next-line no-restricted-modules
+const { default: chalk } = require("../../vendors/chalk.js");
 
 // eslint-disable-next-line no-restricted-modules
 const prettier = require("../index.js");
@@ -14,20 +15,14 @@ const { createIgnorer, errors } = require("./prettier-internal.js");
 const { expandPatterns, fixWindowsSlashes } = require("./expand-patterns.js");
 const getOptionsForFile = require("./options/get-options-for-file.js");
 const isTTY = require("./is-tty.js");
+const findCacheFile = require("./find-cache-file.js");
+const FormatResultsCache = require("./format-results-cache.js");
+const { statSafe } = require("./utils.js");
 
 function diff(a, b) {
-  // Use `diff/lib/patch/create.js` instead of `diff` to reduce bundle size
-  return require("diff/lib/patch/create.js").createTwoFilesPatch(
-    "",
-    "",
-    a,
-    b,
-    "",
-    "",
-    {
-      context: 2,
-    }
-  );
+  return require("diff").createTwoFilesPatch("", "", a, b, "", "", {
+    context: 2,
+  });
 }
 
 function handleError(context, filename, error, printedFilename) {
@@ -173,8 +168,8 @@ function format(context, input, opt) {
     return { formatted: pp, filepath: opt.filepath || "(stdin)\n" };
   }
 
-  /* istanbul ignore next */
-  if (context.argv.debugBenchmark) {
+  const { performanceTestFlag } = context;
+  if (performanceTestFlag?.debugBenchmark) {
     let benchmark;
     try {
       // eslint-disable-next-line import/no-extraneous-dependencies
@@ -205,7 +200,7 @@ function format(context, input, opt) {
         );
       })
       .run({ async: false });
-  } else if (context.argv.debugRepeat > 0) {
+  } else if (performanceTestFlag?.debugRepeat) {
     const repeat = context.argv.debugRepeat;
     context.logger.debug(
       "'--debug-repeat' option found, running formatWithCursor " +
@@ -275,7 +270,17 @@ async function formatStdin(context) {
       return;
     }
 
-    writeOutput(context, format(context, input, options), options);
+    const formatted = format(context, input, options);
+
+    const { performanceTestFlag } = context;
+    if (performanceTestFlag) {
+      context.logger.log(
+        `'${performanceTestFlag.name}' option found, skipped print code to screen.`
+      );
+      return;
+    }
+
+    writeOutput(context, formatted, options);
   } catch (error) {
     handleError(context, relativeFilepath || "stdin", error);
   }
@@ -287,9 +292,32 @@ async function formatFiles(context) {
   const ignorer = await createIgnorerFromContextOrDie(context);
 
   let numberOfUnformattedFilesFound = 0;
+  const { performanceTestFlag } = context;
 
-  if (context.argv.check) {
+  if (context.argv.check && !performanceTestFlag) {
     context.logger.log("Checking formatting...");
+  }
+
+  let formatResultsCache;
+  const cacheFilePath = await findCacheFile(context.argv.cacheLocation);
+  if (context.argv.cache) {
+    formatResultsCache = new FormatResultsCache(
+      cacheFilePath,
+      context.argv.cacheStrategy || "content"
+    );
+  } else {
+    if (context.argv.cacheStrategy) {
+      context.logger.error(
+        "`--cache-strategy` cannot be used without `--cache`."
+      );
+      process.exit(2);
+    }
+    if (!context.argv.cacheLocation) {
+      const stat = await statSafe(cacheFilePath);
+      if (stat) {
+        await fs.unlink(cacheFilePath);
+      }
+    }
   }
 
   for await (const pathOrError of expandPatterns(context)) {
@@ -359,11 +387,20 @@ async function formatFiles(context) {
 
     const start = Date.now();
 
+    const isCacheExists = formatResultsCache?.existsAvailableFormatResultsCache(
+      filename,
+      options
+    );
+
     let result;
     let output;
 
     try {
-      result = format(context, input, options);
+      if (isCacheExists) {
+        result = { formatted: input };
+      } else {
+        result = format(context, input, options);
+      }
       output = result.formatted;
     } catch (error) {
       handleError(context, filename, error, printedFilename);
@@ -371,10 +408,18 @@ async function formatFiles(context) {
     }
 
     const isDifferent = output !== input;
+    let shouldSetCache = !isDifferent;
 
     if (printedFilename) {
       // Remove previously printed filename to log it with duration.
       printedFilename.clear();
+    }
+
+    if (performanceTestFlag) {
+      context.logger.log(
+        `'${performanceTestFlag.name}' option found, skipped print code or write files.`
+      );
+      return;
     }
 
     if (context.argv.write) {
@@ -387,18 +432,24 @@ async function formatFiles(context) {
 
         try {
           await fs.writeFile(filename, output, "utf8");
+
+          // Set cache if format succeeds
+          shouldSetCache = true;
         } catch (error) {
-          /* istanbul ignore next */
           context.logger.error(
             `Unable to write file: ${filename}\n${error.message}`
           );
 
           // Don't exit the process if one file failed
-          /* istanbul ignore next */
           process.exitCode = 2;
         }
       } else if (!context.argv.check && !context.argv.listDifferent) {
-        context.logger.log(`${chalk.grey(filename)} ${Date.now() - start}ms`);
+        const message = `${chalk.grey(filename)} ${Date.now() - start}ms`;
+        if (isCacheExists) {
+          context.logger.log(`${message} (cached)`);
+        } else {
+          context.logger.log(message);
+        }
       }
     } else if (context.argv.debugCheck) {
       /* istanbul ignore else */
@@ -411,6 +462,12 @@ async function formatFiles(context) {
       writeOutput(context, result, options);
     }
 
+    if (shouldSetCache) {
+      formatResultsCache?.setFormatResultsCache(filename, options);
+    } else {
+      formatResultsCache?.removeFormatResultsCache(filename);
+    }
+
     if (isDifferent) {
       if (context.argv.check) {
         context.logger.warn(filename);
@@ -421,15 +478,27 @@ async function formatFiles(context) {
     }
   }
 
+  formatResultsCache?.reconcile();
+
   // Print check summary based on expected exit code
   if (context.argv.check) {
     if (numberOfUnformattedFilesFound === 0) {
       context.logger.log("All matched files use Prettier code style!");
+    } else if (numberOfUnformattedFilesFound === 1) {
+      context.logger.warn(
+        context.argv.write
+          ? "Code style issues fixed in the above file."
+          : "Code style issues found in the above file. Forgot to run Prettier?"
+      );
     } else {
       context.logger.warn(
         context.argv.write
-          ? "Code style issues fixed in the above file(s)."
-          : "Code style issues found in the above file(s). Forgot to run Prettier?"
+          ? "Code style issues found in " +
+              numberOfUnformattedFilesFound +
+              " files."
+          : "Code style issues found in " +
+              numberOfUnformattedFilesFound +
+              " files. Forgot to run Prettier?"
       );
     }
   }
